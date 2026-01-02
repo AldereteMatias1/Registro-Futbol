@@ -1,0 +1,17 @@
+{
+  "name": "registro-futbol-monorepo",
+  "private": true,
+  "packageManager": "pnpm@9.12.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "pnpm -C apps/backend start:dev & pnpm -C apps/frontend dev",
+    "dev:backend": "pnpm -C apps/backend start:dev",
+    "dev:frontend": "pnpm -C apps/frontend dev",
+    "build": "pnpm -C apps/backend build && pnpm -C apps/frontend build",
+    "lint": "pnpm -C apps/backend lint && pnpm -C apps/frontend lint",
+    "test": "echo 'No tests configured'"
+  }
+}
