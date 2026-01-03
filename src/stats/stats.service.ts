@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import {
+  Equipo,
+  EstadoParticipacion,
+  GanadorResultado,
+  Prisma,
+} from '@prisma/client';
 
 @Injectable()
 export class StatsService {
@@ -17,23 +22,95 @@ export class StatsService {
         j.id as "jugadorId",
         j."apellidoNombre" as "apellidoNombre",
         COALESCE(SUM(g.goles), 0) as "golesTotales",
-        COUNT(CASE WHEN p.estado = 'JUGO' THEN 1 END) as "partidosJugados",
-        CASE
-          WHEN COUNT(CASE WHEN p.estado = 'JUGO' THEN 1 END) = 0 THEN NULL
-          ELSE COALESCE(SUM(g.goles), 0)::decimal / COUNT(CASE WHEN p.estado = 'JUGO' THEN 1 END)
-        END as "promedioGolesPorJuego",
-        COUNT(CASE WHEN p.estado = 'JUGO' THEN 1 END) as "asistencias",
-        COUNT(CASE WHEN p.estado = 'BAJA' THEN 1 END) as "bajas",
-        COUNT(CASE WHEN p.estado = 'ANOTADO' THEN 1 END) as "anotado",
-        COUNT(CASE WHEN p.estado = 'JUGO' AND r.ganador = p.equipo THEN 1 END) as "victorias",
-        COUNT(CASE WHEN p.estado = 'JUGO' AND r.ganador = 'EMPATE' THEN 1 END) as "empates",
         COUNT(
-          CASE WHEN p.estado = 'JUGO'
-            AND r.ganador IN ('A','B')
-            AND r.ganador <> p.equipo THEN 1 END
+          CASE
+            WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion"
+              THEN 1
+          END
+        ) as "partidosJugados",
+        CASE
+          WHEN COUNT(
+            CASE
+              WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion"
+                THEN 1
+            END
+          ) = 0 THEN NULL
+          ELSE COALESCE(SUM(g.goles), 0)::decimal
+            / COUNT(
+              CASE
+                WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion"
+                  THEN 1
+              END
+            )
+        END as "promedioGolesPorJuego",
+        COUNT(
+          CASE
+            WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion"
+              THEN 1
+          END
+        ) as "asistencias",
+        COUNT(
+          CASE
+            WHEN p.estado = ${EstadoParticipacion.BAJA}::"EstadoParticipacion"
+              THEN 1
+          END
+        ) as "bajas",
+        COUNT(
+          CASE
+            WHEN p.estado = ${EstadoParticipacion.ANOTADO}::"EstadoParticipacion"
+              THEN 1
+          END
+        ) as "anotado",
+        COUNT(
+          CASE
+            WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion"
+              AND (
+                (r.ganador = ${GanadorResultado.A}::"GanadorResultado"
+                  AND p.equipo = ${Equipo.A}::"Equipo")
+                OR (r.ganador = ${GanadorResultado.B}::"GanadorResultado"
+                  AND p.equipo = ${Equipo.B}::"Equipo")
+              )
+              THEN 1
+          END
+        ) as "victorias",
+        COUNT(
+          CASE
+            WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion"
+              AND r.ganador = ${GanadorResultado.EMPATE}::"GanadorResultado"
+              THEN 1
+          END
+        ) as "empates",
+        COUNT(
+          CASE
+            WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion"
+              AND (
+                (r.ganador = ${GanadorResultado.A}::"GanadorResultado"
+                  AND p.equipo = ${Equipo.B}::"Equipo")
+                OR (r.ganador = ${GanadorResultado.B}::"GanadorResultado"
+                  AND p.equipo = ${Equipo.A}::"Equipo")
+              )
+              THEN 1
+          END
         ) as "derrotas",
-        (COUNT(CASE WHEN p.estado = 'JUGO' AND r.ganador = p.equipo THEN 1 END) * 3
-          + COUNT(CASE WHEN p.estado = 'JUGO' AND r.ganador = 'EMPATE' THEN 1 END)) as "puntos"
+        (COUNT(
+          CASE
+            WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion"
+              AND (
+                (r.ganador = ${GanadorResultado.A}::"GanadorResultado"
+                  AND p.equipo = ${Equipo.A}::"Equipo")
+                OR (r.ganador = ${GanadorResultado.B}::"GanadorResultado"
+                  AND p.equipo = ${Equipo.B}::"Equipo")
+              )
+              THEN 1
+          END
+        ) * 3
+          + COUNT(
+            CASE
+              WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion"
+                AND r.ganador = ${GanadorResultado.EMPATE}::"GanadorResultado"
+                THEN 1
+            END
+          )) as "puntos"
       FROM "Jugador" j
       LEFT JOIN "Participacion" p ON p."jugadorId" = j.id
       LEFT JOIN "Partido" pa ON pa.id = p."partidoId"
