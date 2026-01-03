@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { EstadoParticipacion, GanadorResultado, Prisma } from '@prisma/client';
+import {
+  Equipo,
+  EstadoParticipacion,
+  GanadorResultado,
+  Prisma,
+} from '@prisma/client';
 
 @Injectable()
 export class StatsService {
@@ -17,19 +22,54 @@ export class StatsService {
         j.id as "jugadorId",
         j."apellidoNombre" as "apellidoNombre",
         COALESCE(SUM(g.goles), 0) as "golesTotales",
-        COUNT(CASE WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion" THEN 1 END) as "partidosJugados",
-        CASE
-          WHEN COUNT(CASE WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion" THEN 1 END) = 0 THEN NULL
-          ELSE COALESCE(SUM(g.goles), 0)::decimal
-            / COUNT(CASE WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion" THEN 1 END)
-        END as "promedioGolesPorJuego",
-        COUNT(CASE WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion" THEN 1 END) as "asistencias",
-        COUNT(CASE WHEN p.estado = ${EstadoParticipacion.BAJA}::"EstadoParticipacion" THEN 1 END) as "bajas",
-        COUNT(CASE WHEN p.estado = ${EstadoParticipacion.ANOTADO}::"EstadoParticipacion" THEN 1 END) as "anotado",
         COUNT(
           CASE
             WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion"
-              AND r.ganador::text = p.equipo::text
+              THEN 1
+          END
+        ) as "partidosJugados",
+        CASE
+          WHEN COUNT(
+            CASE
+              WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion"
+                THEN 1
+            END
+          ) = 0 THEN NULL
+          ELSE COALESCE(SUM(g.goles), 0)::decimal
+            / COUNT(
+              CASE
+                WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion"
+                  THEN 1
+              END
+            )
+        END as "promedioGolesPorJuego",
+        COUNT(
+          CASE
+            WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion"
+              THEN 1
+          END
+        ) as "asistencias",
+        COUNT(
+          CASE
+            WHEN p.estado = ${EstadoParticipacion.BAJA}::"EstadoParticipacion"
+              THEN 1
+          END
+        ) as "bajas",
+        COUNT(
+          CASE
+            WHEN p.estado = ${EstadoParticipacion.ANOTADO}::"EstadoParticipacion"
+              THEN 1
+          END
+        ) as "anotado",
+        COUNT(
+          CASE
+            WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion"
+              AND (
+                (r.ganador = ${GanadorResultado.A}::"GanadorResultado"
+                  AND p.equipo = ${Equipo.A}::"Equipo")
+                OR (r.ganador = ${GanadorResultado.B}::"GanadorResultado"
+                  AND p.equipo = ${Equipo.B}::"Equipo")
+              )
               THEN 1
           END
         ) as "victorias",
@@ -43,18 +83,24 @@ export class StatsService {
         COUNT(
           CASE
             WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion"
-              AND r.ganador IN (
-                ${GanadorResultado.A}::"GanadorResultado",
-                ${GanadorResultado.B}::"GanadorResultado"
+              AND (
+                (r.ganador = ${GanadorResultado.A}::"GanadorResultado"
+                  AND p.equipo = ${Equipo.B}::"Equipo")
+                OR (r.ganador = ${GanadorResultado.B}::"GanadorResultado"
+                  AND p.equipo = ${Equipo.A}::"Equipo")
               )
-              AND r.ganador::text <> p.equipo::text
               THEN 1
           END
         ) as "derrotas",
         (COUNT(
           CASE
             WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion"
-              AND r.ganador::text = p.equipo::text
+              AND (
+                (r.ganador = ${GanadorResultado.A}::"GanadorResultado"
+                  AND p.equipo = ${Equipo.A}::"Equipo")
+                OR (r.ganador = ${GanadorResultado.B}::"GanadorResultado"
+                  AND p.equipo = ${Equipo.B}::"Equipo")
+              )
               THEN 1
           END
         ) * 3

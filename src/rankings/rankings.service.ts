@@ -1,5 +1,10 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { Prisma, EstadoParticipacion, GanadorResultado } from '@prisma/client';
+import {
+  Equipo,
+  EstadoParticipacion,
+  GanadorResultado,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -14,11 +19,26 @@ export class RankingsService {
         j.id as "jugadorId",
         j."apellidoNombre" as "apellidoNombre",
         COALESCE(SUM(g.goles), 0) as "golesTotales",
-        COUNT(CASE WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion" THEN 1 END) as "partidosJugados",
+        COUNT(
+          CASE
+            WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion"
+              THEN 1
+          END
+        ) as "partidosJugados",
         CASE
-          WHEN COUNT(CASE WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion" THEN 1 END) = 0 THEN NULL
+          WHEN COUNT(
+            CASE
+              WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion"
+                THEN 1
+            END
+          ) = 0 THEN NULL
           ELSE COALESCE(SUM(g.goles), 0)::decimal
-            / COUNT(CASE WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion" THEN 1 END)
+            / COUNT(
+              CASE
+                WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion"
+                  THEN 1
+              END
+            )
         END as "promedioGolesPorJuego"
       FROM "Jugador" j
       LEFT JOIN "Participacion" p ON p."jugadorId" = j.id
@@ -81,7 +101,12 @@ export class RankingsService {
         COUNT(
           CASE
             WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion"
-              AND r.ganador::text = p.equipo::text
+              AND (
+                (r.ganador = ${GanadorResultado.A}::"GanadorResultado"
+                  AND p.equipo = ${Equipo.A}::"Equipo")
+                OR (r.ganador = ${GanadorResultado.B}::"GanadorResultado"
+                  AND p.equipo = ${Equipo.B}::"Equipo")
+              )
               THEN 1
           END
         ) as "victorias",
@@ -95,18 +120,24 @@ export class RankingsService {
         COUNT(
           CASE
             WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion"
-              AND r.ganador IN (
-                ${GanadorResultado.A}::"GanadorResultado",
-                ${GanadorResultado.B}::"GanadorResultado"
+              AND (
+                (r.ganador = ${GanadorResultado.A}::"GanadorResultado"
+                  AND p.equipo = ${Equipo.B}::"Equipo")
+                OR (r.ganador = ${GanadorResultado.B}::"GanadorResultado"
+                  AND p.equipo = ${Equipo.A}::"Equipo")
               )
-              AND r.ganador::text <> p.equipo::text
               THEN 1
           END
         ) as "derrotas",
         (COUNT(
           CASE
             WHEN p.estado = ${EstadoParticipacion.JUGO}::"EstadoParticipacion"
-              AND r.ganador::text = p.equipo::text
+              AND (
+                (r.ganador = ${GanadorResultado.A}::"GanadorResultado"
+                  AND p.equipo = ${Equipo.A}::"Equipo")
+                OR (r.ganador = ${GanadorResultado.B}::"GanadorResultado"
+                  AND p.equipo = ${Equipo.B}::"Equipo")
+              )
               THEN 1
           END
         ) * 3
