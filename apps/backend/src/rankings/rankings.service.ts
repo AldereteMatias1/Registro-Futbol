@@ -1,34 +1,14 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { Prisma, EstadoParticipacion } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
+import { RankingsSqlRepository } from '../repositories/sql/rankings.sql.repository';
 
 @Injectable()
 export class RankingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly rankingsRepository: RankingsSqlRepository) {}
 
   async goleadores(from?: string, to?: string) {
-    const dateFilter = this.buildDateFilter(from, to);
-
-    const query = Prisma.sql`
-      SELECT
-        j.id as "jugadorId",
-        j."apellidoNombre" as "apellidoNombre",
-        COALESCE(SUM(g.goles), 0) as "golesTotales",
-        COUNT(CASE WHEN p.estado = 'JUGO' THEN 1 END) as "partidosJugados",
-        CASE
-          WHEN COUNT(CASE WHEN p.estado = 'JUGO' THEN 1 END) = 0 THEN NULL
-          ELSE COALESCE(SUM(g.goles), 0)::decimal / COUNT(CASE WHEN p.estado = 'JUGO' THEN 1 END)
-        END as "promedioGolesPorJuego"
-      FROM "Jugador" j
-      LEFT JOIN "Participacion" p ON p."jugadorId" = j.id
-      LEFT JOIN "Partido" pa ON pa.id = p."partidoId"
-      LEFT JOIN "Gol" g ON g."jugadorId" = j.id AND g."partidoId" = p."partidoId"
-      ${dateFilter}
-      GROUP BY j.id
-      ORDER BY "golesTotales" DESC, "promedioGolesPorJuego" DESC, j."apellidoNombre" ASC
-    `;
-
-    return this.prisma.$queryRaw(query);
+    void from;
+    void to;
+    return this.rankingsRepository.goleadores();
   }
 
   async asistenciaMensual(year: number, month: number) {
@@ -36,81 +16,16 @@ export class RankingsService {
       throw new BadRequestException('Mes invalido');
     }
 
-    return this.prisma.$queryRaw(
-      Prisma.sql`
-        SELECT
-          j.id as "jugadorId",
-          j."apellidoNombre" as "apellidoNombre",
-          COUNT(CASE WHEN p.estado = ${EstadoParticipacion.JUGO} THEN 1 END) as "asistenciasMes"
-        FROM "Jugador" j
-        LEFT JOIN "Participacion" p ON p."jugadorId" = j.id
-        LEFT JOIN "Partido" pa ON pa.id = p."partidoId"
-        WHERE EXTRACT(YEAR FROM pa.fecha) = ${year}
-          AND EXTRACT(MONTH FROM pa.fecha) = ${month}
-        GROUP BY j.id
-        ORDER BY "asistenciasMes" DESC, j."apellidoNombre" ASC
-      `,
-    );
+    return this.rankingsRepository.asistenciaMensual(year, month);
   }
 
   async asistenciaAnual(year: number) {
-    return this.prisma.$queryRaw(
-      Prisma.sql`
-        SELECT
-          j.id as "jugadorId",
-          j."apellidoNombre" as "apellidoNombre",
-          COUNT(CASE WHEN p.estado = ${EstadoParticipacion.JUGO} THEN 1 END) as "asistenciasAnio"
-        FROM "Jugador" j
-        LEFT JOIN "Participacion" p ON p."jugadorId" = j.id
-        LEFT JOIN "Partido" pa ON pa.id = p."partidoId"
-        WHERE EXTRACT(YEAR FROM pa.fecha) = ${year}
-        GROUP BY j.id
-        ORDER BY "asistenciasAnio" DESC, j."apellidoNombre" ASC
-      `,
-    );
+    return this.rankingsRepository.asistenciaAnual(year);
   }
 
   async ganadores(from?: string, to?: string) {
-    const dateFilter = this.buildDateFilter(from, to);
-
-    const query = Prisma.sql`
-      SELECT
-        j.id as "jugadorId",
-        j."apellidoNombre" as "apellidoNombre",
-        COUNT(CASE WHEN p.estado = 'JUGO' AND r.ganador = p.equipo THEN 1 END) as "victorias",
-        COUNT(CASE WHEN p.estado = 'JUGO' AND r.ganador = 'EMPATE' THEN 1 END) as "empates",
-        COUNT(
-          CASE WHEN p.estado = 'JUGO'
-            AND r.ganador IN ('A','B')
-            AND r.ganador <> p.equipo THEN 1 END
-        ) as "derrotas",
-        (COUNT(CASE WHEN p.estado = 'JUGO' AND r.ganador = p.equipo THEN 1 END) * 3
-          + COUNT(CASE WHEN p.estado = 'JUGO' AND r.ganador = 'EMPATE' THEN 1 END)) as "puntos"
-      FROM "Jugador" j
-      LEFT JOIN "Participacion" p ON p."jugadorId" = j.id
-      LEFT JOIN "Partido" pa ON pa.id = p."partidoId"
-      LEFT JOIN "Resultado" r ON r."partidoId" = p."partidoId"
-      ${dateFilter}
-      GROUP BY j.id
-      ORDER BY "puntos" DESC, "victorias" DESC, j."apellidoNombre" ASC
-    `;
-
-    return this.prisma.$queryRaw(query);
-  }
-
-  private buildDateFilter(from?: string, to?: string) {
-    const fromDate = from ? new Date(from) : undefined;
-    const toDate = to ? new Date(to) : undefined;
-
-    if (!fromDate && !toDate) {
-      return Prisma.empty;
-    }
-    if (fromDate && toDate) {
-      return Prisma.sql`WHERE pa.fecha >= ${fromDate} AND pa.fecha <= ${toDate}`;
-    }
-    if (fromDate) {
-      return Prisma.sql`WHERE pa.fecha >= ${fromDate}`;
-    }
-    return Prisma.sql`WHERE pa.fecha <= ${toDate}`;
+    void from;
+    void to;
+    return this.rankingsRepository.ganadores();
   }
 }

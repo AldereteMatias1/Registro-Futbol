@@ -1,46 +1,32 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { ResultadosSqlRepository } from '../repositories/sql/resultados.sql.repository';
 import { CreateResultadoDto } from './dto/create-resultado.dto';
-import { GanadorResultado } from '@prisma/client';
 
 @Injectable()
 export class ResultadosService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly resultadosRepository: ResultadosSqlRepository) {}
 
   async findByPartido(partidoId: string) {
-    return this.prisma.resultado.findUnique({ where: { partidoId } });
+    return this.resultadosRepository.findByPartido(partidoId);
   }
 
   async upsert(partidoId: string, dto: CreateResultadoDto) {
     const ganador = this.computeWinner(dto.golesA, dto.golesB);
-    return this.prisma.resultado.upsert({
-      where: { partidoId },
-      create: {
-        partidoId,
-        golesA: dto.golesA,
-        golesB: dto.golesB,
-        ganador,
-      },
-      update: {
-        golesA: dto.golesA,
-        golesB: dto.golesB,
-        ganador,
-      },
-    });
+    return this.resultadosRepository.upsert(partidoId, dto.golesA, dto.golesB, ganador);
   }
 
   async remove(partidoId: string) {
-    await this.prisma.resultado.delete({ where: { partidoId } });
+    await this.resultadosRepository.remove(partidoId);
     return { ok: true };
   }
 
   private computeWinner(golesA: number, golesB: number) {
     if (golesA > golesB) {
-      return GanadorResultado.A;
+      return 'A';
     }
     if (golesB > golesA) {
-      return GanadorResultado.B;
+      return 'B';
     }
-    return GanadorResultado.EMPATE;
+    return 'EMPATE';
   }
 }
