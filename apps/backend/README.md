@@ -14,8 +14,7 @@ Variables requeridas:
 
 ```bash
 npm install
-npm run prisma:generate
-npm run prisma:migrate
+npm run db:migrate
 npm run start:dev
 ```
 

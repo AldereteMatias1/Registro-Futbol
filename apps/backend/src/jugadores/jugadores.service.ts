@@ -1,63 +1,40 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { JugadoresSqlRepository } from '../repositories/sql/jugadores.sql.repository';
 import { CreateJugadorDto } from './dto/create-jugador.dto';
 import { UpdateJugadorDto } from './dto/update-jugador.dto';
 import { buildPagination } from '../common/pagination/pagination';
 
 @Injectable()
 export class JugadoresService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly jugadoresRepository: JugadoresSqlRepository) {}
 
   async findAll(params: { activo?: boolean; q?: string; page?: number; size?: number }) {
     const { skip, take } = buildPagination(params.page, params.size);
-    return this.prisma.jugador.findMany({
-      where: {
-        activo: params.activo,
-        apellidoNombre: params.q
-          ? {
-              contains: params.q,
-              mode: 'insensitive',
-            }
-          : undefined,
-      },
-      orderBy: {
-        apellidoNombre: 'asc',
-      },
+    return this.jugadoresRepository.findAll({
+      activo: params.activo,
+      q: params.q,
       skip,
       take,
     });
   }
 
   async create(dto: CreateJugadorDto) {
-    return this.prisma.jugador.create({
-      data: {
-        apellidoNombre: dto.apellidoNombre,
-        activo: dto.activo ?? true,
-      },
-    });
+    return this.jugadoresRepository.create(dto.apellidoNombre, dto.activo ?? true);
   }
 
   async update(id: string, dto: UpdateJugadorDto) {
-    await this.ensureExists(id);
-    return this.prisma.jugador.update({
-      where: { id },
-      data: dto,
-    });
-  }
-
-  async softDelete(id: string) {
-    await this.ensureExists(id);
-    await this.prisma.jugador.update({
-      where: { id },
-      data: { activo: false },
-    });
-    return { ok: true };
-  }
-
-  private async ensureExists(id: string) {
-    const jugador = await this.prisma.jugador.findUnique({ where: { id } });
+    const jugador = await this.jugadoresRepository.update(id, dto.apellidoNombre, dto.activo);
     if (!jugador) {
       throw new NotFoundException('Jugador no encontrado');
     }
+    return jugador;
+  }
+
+  async softDelete(id: string) {
+    const jugador = await this.jugadoresRepository.update(id, undefined, false);
+    if (!jugador) {
+      throw new NotFoundException('Jugador no encontrado');
+    }
+    return { ok: true };
   }
 }

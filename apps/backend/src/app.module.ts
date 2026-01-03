@@ -9,14 +9,14 @@ import { GolesModule } from './goles/goles.module';
 import { ResultadosModule } from './resultados/resultados.module';
 import { StatsModule } from './stats/stats.module';
 import { RankingsModule } from './rankings/rankings.module';
-import { PrismaModule } from './prisma/prisma.module';
+import { DbModule } from './db/db.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    PrismaModule,
+    DbModule,
     JugadoresModule,
     PartidosModule,
     ParticipacionesModule,

@@ -1,17 +1,14 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { ParticipacionesSqlRepository } from '../repositories/sql/participaciones.sql.repository';
 import { BulkParticipacionDto, EstadoParticipacion } from './dto/bulk-participacion.dto';
 import { UpdateParticipacionDto } from './dto/update-participacion.dto';
 
 @Injectable()
 export class ParticipacionesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly participacionesRepository: ParticipacionesSqlRepository) {}
 
   async findByPartido(partidoId: string) {
-    return this.prisma.participacion.findMany({
-      where: { partidoId },
-      orderBy: { createdAt: 'asc' },
-    });
+    return this.participacionesRepository.findByPartido(partidoId);
   }
 
   async bulkUpsert(partidoId: string, dto: BulkParticipacionDto) {
@@ -21,60 +18,35 @@ export class ParticipacionesService {
       }
     }
 
-    const ops = dto.items.map((item) =>
-      this.prisma.participacion.upsert({
-        where: {
-          partidoId_jugadorId: {
-            partidoId,
-            jugadorId: item.jugadorId,
-          },
-        },
-        create: {
-          partidoId,
-          jugadorId: item.jugadorId,
-          equipo: item.equipo ?? null,
-          estado: item.estado,
-          motivoBaja: item.motivoBaja,
-          comentarios: item.comentarios,
-        },
-        update: {
-          equipo: item.equipo ?? null,
-          estado: item.estado,
-          motivoBaja: item.motivoBaja,
-          comentarios: item.comentarios,
-        },
-      }),
-    );
-
-    await this.prisma.$transaction(ops);
-    return { ok: true, count: dto.items.length };
+    const count = await this.participacionesRepository.bulkUpsert(partidoId, dto.items);
+    return { ok: true, count };
   }
 
-  async update(id: string, dto: UpdateParticipacionDto) {
-    if (dto.estado === EstadoParticipacion.JUGO && !dto.equipo) {
-      throw new BadRequestException('Equipo requerido si estado es JUGO');
-    }
-
-    await this.ensureExists(id);
-    return this.prisma.participacion.update({
-      where: { id },
-      data: {
-        equipo: dto.equipo ?? null,
-        estado: dto.estado,
-        motivoBaja: dto.motivoBaja,
-        comentarios: dto.comentarios,
-      },
-    });
+async update(id: string, dto: UpdateParticipacionDto) {
+  if (dto.estado === EstadoParticipacion.JUGO && !dto.equipo) {
+    throw new BadRequestException('Equipo requerido si estado es JUGO');
   }
+
+  await this.ensureExists(id);
+
+  return this.participacionesRepository.update(
+    id,
+    dto.equipo ?? null,
+    dto.estado ?? null,
+    dto.motivoBaja ?? null,
+    dto.comentarios ?? null,
+  );
+}
+
 
   async remove(id: string) {
     await this.ensureExists(id);
-    await this.prisma.participacion.delete({ where: { id } });
+    await this.participacionesRepository.remove(id);
     return { ok: true };
   }
 
   private async ensureExists(id: string) {
-    const participacion = await this.prisma.participacion.findUnique({ where: { id } });
+    const participacion = await this.participacionesRepository.findById(id);
     if (!participacion) {
       throw new NotFoundException('Participacion no encontrada');
     }
