@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { Pool, PoolClient, QueryResult } from 'pg';
+import { Pool, PoolClient, QueryResultRow } from 'pg';
 
 @Injectable()
 export class DbService implements OnModuleDestroy {
@@ -12,20 +12,27 @@ export class DbService implements OnModuleDestroy {
     });
   }
 
-  async query<T>(sql: string, params: unknown[] = []): Promise<T[]> {
-    try {
-      const result: QueryResult<T> = await this.pool.query(sql, params);
-      return result.rows;
-    } catch (error) {
-      this.logError('query', error);
-      throw error;
-    }
+async query<T extends QueryResultRow = QueryResultRow>(
+  sql: string,
+  params: unknown[] = [],
+): Promise<T[]> {
+  try {
+    const result = await this.pool.query<T>(sql, params);
+    return result.rows;
+  } catch (error) {
+    this.logError('query', error);
+    throw error;
   }
+}
 
-  async one<T>(sql: string, params: unknown[] = []): Promise<T | null> {
-    const rows = await this.query<T>(sql, params);
-    return rows[0] ?? null;
-  }
+async one<T extends QueryResultRow = QueryResultRow>(
+  sql: string,
+  params: unknown[] = [],
+): Promise<T | null> {
+  const rows = await this.query<T>(sql, params);
+  return rows[0] ?? null;
+}
+
 
   async tx<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
     const client = await this.pool.connect();

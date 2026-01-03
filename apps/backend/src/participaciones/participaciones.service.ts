@@ -22,20 +22,22 @@ export class ParticipacionesService {
     return { ok: true, count };
   }
 
-  async update(id: string, dto: UpdateParticipacionDto) {
-    if (dto.estado === EstadoParticipacion.JUGO && !dto.equipo) {
-      throw new BadRequestException('Equipo requerido si estado es JUGO');
-    }
-
-    await this.ensureExists(id);
-    return this.participacionesRepository.update(
-      id,
-      dto.equipo ?? null,
-      dto.estado,
-      dto.motivoBaja,
-      dto.comentarios,
-    );
+async update(id: string, dto: UpdateParticipacionDto) {
+  if (dto.estado === EstadoParticipacion.JUGO && !dto.equipo) {
+    throw new BadRequestException('Equipo requerido si estado es JUGO');
   }
+
+  await this.ensureExists(id);
+
+  return this.participacionesRepository.update(
+    id,
+    dto.equipo ?? null,
+    dto.estado ?? null,
+    dto.motivoBaja ?? null,
+    dto.comentarios ?? null,
+  );
+}
+
 
   async remove(id: string) {
     await this.ensureExists(id);

@@ -51,34 +51,37 @@ export class ParticipacionesSqlRepository {
   }
 
   async update(
-    id: string,
-    equipo: string | null,
-    estado: string,
-    motivoBaja?: string,
-    comentarios?: string,
-  ): Promise<ParticipacionRow | null> {
-    return this.db.one<ParticipacionRow>(
-      `
-        UPDATE "Participacion"
-        SET equipo = $2::"Equipo",
-            estado = $3::"EstadoParticipacion",
-            "motivoBaja" = $4,
-            comentarios = $5,
-            "updatedAt" = now()
-        WHERE id = $1
-        RETURNING id,
-                  "partidoId",
-                  "jugadorId",
-                  equipo::text AS equipo,
-                  estado::text AS estado,
-                  "motivoBaja",
-                  comentarios,
-                  "createdAt",
-                  "updatedAt"
-      `,
-      [id, equipo, estado, motivoBaja ?? null, comentarios ?? null],
-    );
-  }
+  id: string,
+  equipo: string | null,
+  estado: string | null,
+  motivoBaja?: string | null,
+  comentarios?: string | null,
+): Promise<ParticipacionRow | null> {
+  return this.db.one<ParticipacionRow>(
+    `
+      UPDATE "Participacion"
+      SET
+        equipo = COALESCE($2::"Equipo", equipo),
+        estado = COALESCE($3::"EstadoParticipacion", estado),
+        "motivoBaja" = COALESCE($4, "motivoBaja"),
+        comentarios = COALESCE($5, comentarios),
+        "updatedAt" = now()
+      WHERE id = $1
+      RETURNING
+        id,
+        "partidoId",
+        "jugadorId",
+        equipo::text AS equipo,
+        estado::text AS estado,
+        "motivoBaja",
+        comentarios,
+        "createdAt",
+        "updatedAt"
+    `,
+    [id, equipo, estado, motivoBaja ?? null, comentarios ?? null],
+  );
+}
+
 
   async remove(id: string): Promise<void> {
     await this.db.query(`DELETE FROM "Participacion" WHERE id = $1`, [id]);
